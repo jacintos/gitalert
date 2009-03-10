@@ -1,8 +1,7 @@
 #! /usr/bin/env python
 
-from netgrowl import GROWL_UDP_PORT, GrowlNotificationPacket, GrowlRegistrationPacket
 from optparse import OptionParser
-import git, os, socket, sys
+import git, netgrowl, os, socket, sys
 
 PASSWORD = None
 
@@ -11,7 +10,7 @@ def main():
     parser = OptionParser()
     parser.add_option('-r', '--repo', dest='repo', metavar='DIR', help='Path to repository')
     parser.add_option('-c', '--commit', dest='commit', action='store_true', default=True, help='Notify of a commit')
-    parser.add_option('-p', '--push', dest='commit', action='store_false', default=True, help='Notify of a push to remote repository')
+    parser.add_option('-p', '--push', dest='commit', action='store_false', help='Notify of a push to remote repository')
     opts, args = parser.parse_args()
 
     if opts.repo is None:
@@ -24,7 +23,7 @@ def main():
     try:
         repo = git.Repo(opts.repo)
     except git.errors.NoSuchPathError:
-        print 'Repository does not exist at %(opts.repo)s'
+        print 'Repository does not exist at %s' % opts.repo
         return 2
 
     head = repo.heads[0]
@@ -40,19 +39,21 @@ def main():
         title = os.path.basename(opts.repo)
         description = "%s pushed to central repository" % (committer)
 
-    addr = '255.255.255.255', GROWL_UDP_PORT
+    addr = '255.255.255.255', netgrowl.GROWL_UDP_PORT
 
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-    # Register
-    p = GrowlRegistrationPacket(application='gitalert')
+    # Register notification
+    p = netgrowl.GrowlRegistrationPacket(application='gitalert', password=PASSWORD)
     p.addNotification()
     s.sendto(p.payload(), addr)
 
-    p = GrowlNotificationPacket(application='gitalert',
-                                title=title,
-                                description=description)
+    # Send notification
+    p = netgrowl.GrowlNotificationPacket(application='gitalert',
+                                         title=title,
+                                         description=description,
+                                         password=PASSWORD)
     s.sendto(p.payload(), addr)
 
     s.close()
