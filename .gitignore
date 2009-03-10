@@ -1,0 +1,6 @@
+
+build/
+dist/
+gitalert.egg-info/
+*~
+*.pyc
